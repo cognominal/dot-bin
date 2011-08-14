@@ -1,0 +1,60 @@
+#! /usr/bin/env perl
+=pod
+=head1 NAME 
+
+gitprompt -- output info about git status, current repo, current branch name for use in a shell prompt
+
+=head1 DESCRIPTION
+
+Make sure gitprompt is executable and accessible from you PATH.
+With the bash shell, add the following line in your C<~/.profile>
+
+  export PS1='$(gitprompt) $ '
+
+Now on you shell prompt :
+
+ $ source ~/.profile
+ [134-3? rakudo/rakudo nom]$ 
+
+Now your prompt is updated. It shows between square brackets the
+current repo,  a concise git status and branch name.  The prompt
+reverts to show the current directory outside a git repo.
+
+
+=cut
+use feature ':5.10';
+use strict;
+use Slurp;
+
+open my $fh, "git status 2>/dev/null |" or die "$!";
+my ($deleted, $untracked, $modified, $trackuntracked);
+for ( <$fh>) {
+   /deleted:/ &&  $deleted++;
+   $trackuntracked=1 if /Untracked files:/;
+   $untracked++ if $trackuntracked and m/^#/;
+  /modified:/ && $modified++;
+}
+$untracked-= 2 if $untracked;
+
+open $fh,  'git branch --no-color 2> /dev/null | ';
+my ($branch) = grep {  /\*/ } <$fh>;
+$branch =~ s/\s*\*\s*(.*)\n/$1/;
+$deleted = "$deleted-"     if $deleted;
+$modified = "$modified*"   if $modified;
+$untracked = "$untracked?" if $untracked;
+
+my $reponm;
+my $qr = qr|https://github.com/(.*)\.git$|;
+my $fnm = '.git/config';
+if (-f $fnm) {
+  my @t = grep {  /$qr/ }  slurp $fnm;
+  ($reponm) = $t[0] =~ /$qr/;
+}
+if ($branch) {
+    print  "[$deleted$untracked$modified $reponm $branch]";
+    exit 0;
+}
+my $home = $ENV{HOME};
+my $cwd = $ENV{PWD};
+$cwd =~ s|$home|~|;
+print $cwd;
