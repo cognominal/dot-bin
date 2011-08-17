@@ -53,7 +53,7 @@ $untracked = "$untracked?" if $untracked;
 $modified = "$modified*"   if $modified;
 
 my $reponm;
-my $qr = qr|https://github.com/(.*)\.git$|;
+my $qr = qr|https://github.com/(.*)(\.git)?$|;
 my $fnm = '.git/config';
 
 my @cwd = split '/', $cwd;
