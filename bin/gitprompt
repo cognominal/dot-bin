@@ -2,11 +2,11 @@
 =pod
 =head1 NAME 
 
-gitprompt -- output info about git status, current repo, current branch name for use in a shell prompt
+gitprompt -- info about git status, current repo, current branch name for use in a shell prompt
 
 =head1 DESCRIPTION
 
-Make sure gitprompt is executable and accessible from you PATH.
+Make sure gitprompt is executable and accessible from your PATH.
 With the bash shell, add the following line in your C<~/.profile>
 
   export PS1='$(gitprompt) $ '
@@ -14,11 +14,16 @@ With the bash shell, add the following line in your C<~/.profile>
 Now on you shell prompt :
 
  $ source ~/.profile
- [134-3? rakudo/rakudo nom]$ 
+ [ 134- 3? 4* rakudo/rakudo nom] $ 
 
 Now your prompt is updated. It shows between square brackets the
-current repo,  a concise git status and branch name.  The prompt
-reverts to show the current directory outside a git repo.
+current repo name as per github, a concise git status and branch name.
+Here the concise git status is "134- 3? 4*", meaning 134 deleted
+files, 3 untracked files and 4 modified files.  The deleted, untracked
+or modified chunks are omitted if irrelevant.
+
+The prompt reverts to show the current directory outside a git repo
+hierarchy.
 
 
 =cut
@@ -44,8 +49,8 @@ open $fh,  'git branch --no-color 2> /dev/null | ';
 my ($branch) = grep {  /\*/ } <$fh>;
 $branch =~ s/\s*\*\s*(.*)\n/$1/;
 $deleted = "$deleted-"     if $deleted;
-$modified = "$modified*"   if $modified;
 $untracked = "$untracked?" if $untracked;
+$modified = "$modified*"   if $modified;
 
 my $reponm;
 my $qr = qr|https://github.com/(.*)\.git$|;
@@ -53,13 +58,17 @@ my $fnm = '.git/config';
 
 my @cwd = split '/', $cwd;
 for (reverse 1 .. (@cwd -1)) {
-  next unless -f '/' . (join '/', @cwd[1 .. $_]) . "$/$fnm";
-  my @t = grep {  /$qr/ }  slurp $fnm;
+   my $s = join '/', @cwd[1..$_];
+   my $path = "/$s/$fnm";
+   next unless -f $path;
+   my @t = grep {  /$qr/ }  slurp $path;
   ($reponm) = $t[0] =~ /$qr/;
   last;
 }
 if ($branch) {
-    print  "[$deleted$untracked$modified $reponm $branch]";
+    my $_ = "[ $deleted $untracked $modified $reponm $branch]";
+    s/ +/ /g; # remove uneeded spaces
+    print $_;
     exit 0;
 }
 print $smartCwd;
