@@ -26,6 +26,10 @@ use feature ':5.10';
 use strict;
 use Slurp;
 
+my ($home, $cwd) = @ENV{ qw( HOME PWD ) };
+(my $smartCwd = $cwd) =~ s|$home|~|;
+
+
 open my $fh, "git status 2>/dev/null |" or die "$!";
 my ($deleted, $untracked, $modified, $trackuntracked);
 for ( <$fh>) {
@@ -46,15 +50,16 @@ $untracked = "$untracked?" if $untracked;
 my $reponm;
 my $qr = qr|https://github.com/(.*)\.git$|;
 my $fnm = '.git/config';
-if (-f $fnm) {
+
+my @cwd = split '/', $cwd;
+for (reverse 1 .. (@cwd -1)) {
+  next unless -f '/' . (join '/', @cwd[1 .. $_]) . "$/$fnm";
   my @t = grep {  /$qr/ }  slurp $fnm;
   ($reponm) = $t[0] =~ /$qr/;
+  last;
 }
 if ($branch) {
     print  "[$deleted$untracked$modified $reponm $branch]";
     exit 0;
 }
-my $home = $ENV{HOME};
-my $cwd = $ENV{PWD};
-$cwd =~ s|$home|~|;
-print $cwd;
+print $smartCwd;
