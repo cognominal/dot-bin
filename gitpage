@@ -1,0 +1,83 @@
+#! /usr/bin/env perl
+use feature ':5.10';
+use strict;
+use autodie;
+use Cwd;
+use Slurp;
+
+
+=pod
+=head1 NAME 
+
+gitpage -- opens the github webpage for a local git repository
+
+=head1 DESCRIPTION
+
+TODO. by default open the commit page for the current branch
+
+=cut
+
+my $usage = <<'EOF';
+Usage:
+With a <branch> argument, open the github project web commit page for the said branch.
+Without a <branch> argument, open the github project web page.
+
+outside a depot
+   gitpage [dirname] [branch]
+in a depot
+   gitpage [branch]   
+EOF
+
+my $gitdir = "$ENV{HOME}/git";
+my $inADepot = gitDirDo( qr/github/ );
+# too much arguments?
+die "you are in a depot\n$usage" if $inADepot and @ARGV > 1;
+die "you are outside a depot\n$usage" if !$inADepot and @ARGV > 2;
+# not enough ?
+die "$usage" if @ARGV + $inADepot < 1;
+
+my ($dirNm, $branchNm) = @ARGV;
+if ($inADepot) {
+  ($branchNm) = @ARGV;
+} else {
+ my $projdir = "$gitdir/$dirNm";
+ die  "no git dir for $ARGV[0]" unless -d $projdir;
+ chdir $projdir;
+}  
+
+say "$branchNm";
+
+# now we are within a depot but not necessarily at the root.
+my ($_) = gitDirDo( qr/github/ );
+my ($url) = m/\s*url\s*=\s*(.*?)(\.git)?$/;
+exec "open $url" unless $branchNm ;
+exec"open $url/commits/$branchNm";
+
+sub gitDirDo {
+  my ($fun) = @_;
+  my $configFnm = '.git/config';
+  my $cwd = getcwd();
+  my @cwd = split '/', $cwd;
+  for (reverse 1 .. (@cwd -1)) {
+     my $s = join '/', @cwd[1..$_];
+     my $path = "/$s/$configFnm";
+     next unless -f $path;
+     my @text = slurp $path;
+     given (ref $fun) {
+       return grep {   /$fun/  } @text  when 'Regexp';
+       return $fun->('toto') when 'Code';
+     }
+  }
+}
+
+
+__END__
+
+I did not figure out why the argument where missing
+
+gitDirDo( &test);
+sub test {
+  say "called @_";
+  my $t = join '', @_;
+  say $t;
+}
